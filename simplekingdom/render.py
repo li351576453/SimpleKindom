@@ -321,26 +321,29 @@ class OverlayRenderer:
                                 river_path.lineTo(screen_corners[(edge + 1) % 6])
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         if has_rivers:
-            casing = QPen(QColor("#4a96b8"), max(2.0, hex_size * 0.23))
+            casing = QPen(QColor("#4a96b8"), max(0.65, hex_size * 0.23))
             casing.setCapStyle(Qt.PenCapStyle.RoundCap)
             casing.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(casing)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(river_path)
-            core = QPen(QColor(TERRAIN_COLORS[Terrain.LAKE]), max(1.25, hex_size * 0.13))
+            core = QPen(
+                QColor(TERRAIN_COLORS[Terrain.LAKE]),
+                max(0.35, hex_size * 0.12),
+            )
             core.setCapStyle(Qt.PenCapStyle.RoundCap)
             core.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(core)
             painter.drawPath(river_path)
         if has_roads:
-            # 一条深色外缘让道路在深绿地形上也能看清，主体保持黑色。
-            edge = QPen(QColor(220, 205, 160, 80), max(2.2, hex_size * 0.20))
+            # 深棕色外缘压边，主体使用亮棕色，避免和深绿色地形混在一起。
+            edge = QPen(QColor(78, 47, 24, 220), max(0.75, hex_size * 0.20))
             edge.setCapStyle(Qt.PenCapStyle.RoundCap)
             edge.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(edge)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(road_path)
-            road = QPen(QColor("#0a0c0a"), max(1.5, hex_size * 0.13))
+            road = QPen(QColor("#c08048"), max(0.40, hex_size * 0.12))
             road.setCapStyle(Qt.PenCapStyle.RoundCap)
             road.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(road)

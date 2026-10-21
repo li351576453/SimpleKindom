@@ -284,7 +284,7 @@ class MapEditorWindow(QMainWindow):
         header2.addStretch(1)
         header2.addWidget(self._label("8 · 9 · E", "Hint"))
         root.addLayout(header2)
-        self.btn_road = self._overlay_button("道路", "road", "#e8d7a4")
+        self.btn_road = self._overlay_button("道路", "road", "#c08048")
         self.btn_river = self._overlay_button("河流", "river", "#8bd8ef")
         self.btn_eraser = self._overlay_button("橡皮擦", "eraser", "#ff9a84")
         self.btn_road.setToolTip(

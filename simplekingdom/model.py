@@ -646,8 +646,8 @@ class MapModel:
         terrain = np.frombuffer(self.terrain, dtype=np.uint8)
         overlay = np.frombuffer(self.overlay, dtype=np.uint8)
         rgb = self.terrain_color_lut[terrain].copy()
-        # 道路为近黑色，河流为浅蓝色，和主视图一致。
-        rgb[(overlay & OVERLAY_ROAD) != 0] = (24, 26, 25)
+        # 道路为亮棕色，河流为浅蓝色，和主视图一致。
+        rgb[(overlay & OVERLAY_ROAD) != 0] = (192, 128, 72)
         rgb[(overlay & OVERLAY_RIVER) != 0] = (121, 201, 230)
         image = QImage(rgb.data, self.width, self.height, self.width * 3, QImage.Format.Format_RGB888)
         return image.copy()

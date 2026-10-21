@@ -338,12 +338,12 @@ class MapCanvas(QWidget):
 
     def _draw_path_preview(self, painter: QPainter) -> None:
         line_color = (
-            QColor("#f5e7bd")
+            QColor("#c08048")
             if self._path_layer == "road"
             else QColor("#8bd8ef")
         )
         if self._path_edges:
-            pen = QPen(line_color, max(2.0, self.hex_size * 0.16))
+            pen = QPen(line_color, max(1.0, self.hex_size * 0.16))
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(pen)
@@ -366,9 +366,9 @@ class MapCanvas(QWidget):
         )
         painter.setPen(marker_pen)
         painter.setBrush(
-            QColor("#b58b3a") if self._path_layer == "road" else QColor("#2c7fa3")
+            QColor("#8a5a2e") if self._path_layer == "road" else QColor("#2c7fa3")
         )
-        radius = max(2.5, self.hex_size * 0.18)
+        radius = max(1.8, self.hex_size * 0.16)
         for key in self._path_points:
             x, y = key_to_point(key)
             painter.drawEllipse(
@@ -398,7 +398,7 @@ class MapCanvas(QWidget):
                 painter.drawLine(last_pos, hover_pos)
             painter.setPen(QPen(QColor("#f5e7bd"), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(hover_pos, radius + 2.0, radius + 2.0)
+            painter.drawEllipse(hover_pos, radius + 1.2, radius + 1.2)
 
     def set_brush_size(self, size: int) -> None:
         self.brush_size = max(1, min(12, int(size)))
@@ -559,7 +559,7 @@ class MapCanvas(QWidget):
         col, row = self._hover_cell
         color = QColor(TERRAIN_COLORS[self.selected_terrain])
         if self.tool == TOOL_ROAD:
-            color = QColor("#f5e7bd")
+            color = QColor("#c08048")
         elif self.tool == TOOL_RIVER:
             color = QColor("#8bd8ef")
         elif self.tool == TOOL_ERASER:
@@ -610,12 +610,12 @@ class MapCanvas(QWidget):
         )
 
     def _draw_edge_preview(self, painter: QPainter) -> None:
-        width = max(2.6, self.hex_size * 0.16)
+        width = max(1.3, self.hex_size * 0.16)
         if self._edge_specs:
             if self._edge_erase:
                 color = QColor("#ff9a84")
             elif self._edge_layer == "road":
-                color = QColor("#f5e7bd")
+                color = QColor("#c08048")
             else:
                 color = QColor("#8bd8ef")
             pen = QPen(color, width)
@@ -627,13 +627,13 @@ class MapCanvas(QWidget):
         if self._hover_edge is not None and not self._panning:
             cell, edge = self._hover_edge
             a, b = self._edge_screen_endpoints(cell, edge)
-            pen = QPen(QColor("#f0d894"), max(width + 1.6, 3.2))
+            pen = QPen(QColor("#f0d894"), max(width + 0.8, 1.8))
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             painter.setPen(pen)
             painter.drawLine(a, b)
 
     def _draw_stroke_preview(self, painter: QPainter) -> None:
-        color = QColor("#f5e7bd")
+        color = QColor("#c08048")
         fill = QColor(color)
         fill.setAlpha(58)
         painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), 120), 1.0))
