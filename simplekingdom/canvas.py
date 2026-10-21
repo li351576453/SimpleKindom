@@ -143,7 +143,11 @@ class MapCanvas(QWidget):
         self._path_points: list[tuple[int, int]] = []
         self._path_edges: list[tuple[int, int]] = []
         self._path_hover: tuple[tuple[int, int], tuple[float, float]] | None = None
+        self._path_layer = "river"
         self._path_groups_before: tuple[tuple[tuple[int, int], ...], ...] | None = None
+        self._path_road_groups_before: (
+            tuple[tuple[tuple[int, int], ...], ...] | None
+        ) = None
         self._has_land = self._compute_has_land()
 
         self.zoom_panel = ZoomPanel(self)
@@ -175,12 +179,13 @@ class MapCanvas(QWidget):
         self.update()
 
     def set_tool(self, tool: str, terrain: Terrain | None = None) -> None:
+        previous_tool = self.tool
         self.tool = tool
         if terrain is not None:
             self.selected_terrain = terrain
         if tool not in (TOOL_ROAD, TOOL_RIVER):
             self._hover_edge = None
-        if tool != TOOL_RIVER:
+        if tool != previous_tool:
             self._clear_path()
         self.setCursor(
             Qt.CursorShape.PointingHandCursor
@@ -201,7 +206,7 @@ class MapCanvas(QWidget):
         return len(self._path_points)
 
     def _set_path_hover(self, pos: QPointF) -> None:
-        if not self.path_mode or self.tool != TOOL_RIVER:
+        if not self.path_mode or self.tool not in (TOOL_ROAD, TOOL_RIVER):
             self._path_hover = None
             return
         cell = self._screen_to_cell(pos)
@@ -248,13 +253,19 @@ class MapCanvas(QWidget):
         )
         if self._path_points and self._path_points[-1] == key:
             return
+        if not self._path_points:
+            self._path_layer = (
+                "road" if self.tool == TOOL_ROAD else "river"
+            )
         self._path_points.append(key)
         if self._path_groups_before is None:
             self._path_groups_before = self.model.copy_river_groups()
+            self._path_road_groups_before = self.model.copy_road_groups()
         if not self._recompute_path():
             self._path_points.pop()
             if not self._path_points:
                 self._path_groups_before = None
+                self._path_road_groups_before = None
             self._recompute_path()
         self.path_changed.emit(len(self._path_points))
         self.update()
@@ -265,6 +276,7 @@ class MapCanvas(QWidget):
         self._path_points.pop()
         if not self._path_points:
             self._path_groups_before = None
+            self._path_road_groups_before = None
         self._recompute_path()
         self.path_changed.emit(len(self._path_points))
         self.update()
@@ -272,11 +284,13 @@ class MapCanvas(QWidget):
     def _clear_path(self) -> None:
         if not self._path_points and not self._path_edges:
             self._path_groups_before = None
+            self._path_road_groups_before = None
             self._path_hover = None
             return
         self._path_points.clear()
         self._path_edges.clear()
         self._path_groups_before = None
+        self._path_road_groups_before = None
         self._path_hover = None
         self.path_changed.emit(0)
         self.update()
@@ -284,35 +298,52 @@ class MapCanvas(QWidget):
     def _path_commit(self) -> None:
         if len(self._path_points) < 2 or not self._path_edges:
             return
-        before = self._path_groups_before
+        river_before = self._path_groups_before
+        road_before = self._path_road_groups_before
         specs = list(self._path_edges)
-        if before is None:
-            before = self.model.copy_river_groups()
-        self.model.add_river_edge_group(specs)
-        after = self.model.copy_river_groups()
-        if after != before:
+        if river_before is None:
+            river_before = self.model.copy_river_groups()
+        if road_before is None:
+            road_before = self.model.copy_road_groups()
+        if self._path_layer == "road":
+            self.model.add_road_edge_group(specs)
+            label = "路径点绘制道路"
+        else:
+            self.model.add_river_edge_group(specs)
+            label = "路径点绘制河流"
+        river_after = self.model.copy_river_groups()
+        road_after = self.model.copy_road_groups()
+        if river_after != river_before or road_after != road_before:
             self.model.rebuild_all_edges()
             self.model.touch()
             command = CellStrokeCommand(
                 self.model,
                 [],
                 self._command_callback,
-                "路径点绘制河流",
+                label,
                 already_applied=True,
-                before_river_groups=before,
-                after_river_groups=after,
+                before_river_groups=river_before,
+                after_river_groups=river_after,
+                before_road_groups=road_before,
+                after_road_groups=road_after,
             )
             self.undo_stack.push(command)
         self._path_points.clear()
         self._path_edges.clear()
         self._path_groups_before = None
+        self._path_road_groups_before = None
         self._path_hover = None
         self.path_changed.emit(0)
         self.update()
 
     def _draw_path_preview(self, painter: QPainter) -> None:
+        line_color = (
+            QColor("#f5e7bd")
+            if self._path_layer == "road"
+            else QColor("#8bd8ef")
+        )
         if self._path_edges:
-            pen = QPen(QColor("#8bd8ef"), max(2.0, self.hex_size * 0.16))
+            pen = QPen(line_color, max(2.0, self.hex_size * 0.16))
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             painter.setPen(pen)
@@ -329,9 +360,14 @@ class MapCanvas(QWidget):
                     ),
                 )
 
-        marker_pen = QPen(QColor("#dff7ff"), max(1.0, self.hex_size * 0.08))
+        marker_pen = QPen(
+            QColor("#fff2cf") if self._path_layer == "road" else QColor("#dff7ff"),
+            max(1.0, self.hex_size * 0.08),
+        )
         painter.setPen(marker_pen)
-        painter.setBrush(QColor("#2c7fa3"))
+        painter.setBrush(
+            QColor("#b58b3a") if self._path_layer == "road" else QColor("#2c7fa3")
+        )
         radius = max(2.5, self.hex_size * 0.18)
         for key in self._path_points:
             x, y = key_to_point(key)
@@ -357,7 +393,7 @@ class MapCanvas(QWidget):
                     self.offset.x() + last_x * self.hex_size,
                     self.offset.y() + last_y * self.hex_size,
                 )
-                dash = QPen(QColor("#8bd8ef"), 1.0, Qt.PenStyle.DashLine)
+                dash = QPen(line_color, 1.0, Qt.PenStyle.DashLine)
                 painter.setPen(dash)
                 painter.drawLine(last_pos, hover_pos)
             painter.setPen(QPen(QColor("#f5e7bd"), 1.5))
@@ -501,7 +537,7 @@ class MapCanvas(QWidget):
         self.renderer.paint(painter, self.hex_size, self.offset, viewport)
         OverlayRenderer.paint(painter, self.model, self.hex_size, self.offset, viewport)
 
-        if self.tool == TOOL_RIVER and self.path_mode:
+        if self.path_mode and self.tool in (TOOL_ROAD, TOOL_RIVER):
             self._draw_path_preview(painter)
         elif self.tool in (TOOL_ROAD, TOOL_RIVER):
             self._draw_edge_preview(painter)
@@ -659,7 +695,10 @@ class MapCanvas(QWidget):
             event.accept()
             return
         if event.button() == Qt.MouseButton.RightButton:
-            if self.tool == TOOL_RIVER and self.path_mode:
+            if (
+                self.path_mode
+                and self.tool in (TOOL_ROAD, TOOL_RIVER)
+            ):
                 if self._path_points:
                     self._path_remove_last()
                     event.accept()
@@ -678,7 +717,10 @@ class MapCanvas(QWidget):
             event.accept()
             return
         if event.button() == Qt.MouseButton.LeftButton:
-            if self.tool == TOOL_RIVER and self.path_mode:
+            if (
+                self.path_mode
+                and self.tool in (TOOL_ROAD, TOOL_RIVER)
+            ):
                 self._path_add_point(pos)
                 event.accept()
                 return
@@ -702,7 +744,7 @@ class MapCanvas(QWidget):
             self._emit_view()
             self.update()
             return
-        if self.tool == TOOL_RIVER and self.path_mode:
+        if self.path_mode and self.tool in (TOOL_ROAD, TOOL_RIVER):
             self._set_path_hover(pos)
             self.update()
             super().mouseMoveEvent(event)
@@ -764,8 +806,8 @@ class MapCanvas(QWidget):
     def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
         if (
             event.button() == Qt.MouseButton.LeftButton
-            and self.tool == TOOL_RIVER
             and self.path_mode
+            and self.tool in (TOOL_ROAD, TOOL_RIVER)
         ):
             self._path_commit()
             event.accept()
@@ -777,7 +819,7 @@ class MapCanvas(QWidget):
             self._space_down = True
             self.setCursor(Qt.CursorShape.OpenHandCursor)
             return
-        if self.tool == TOOL_RIVER and self.path_mode:
+        if self.path_mode and self.tool in (TOOL_ROAD, TOOL_RIVER):
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self._path_commit()
                 return

@@ -288,10 +288,10 @@ class MapEditorWindow(QMainWindow):
         self.btn_river = self._overlay_button("河流", "river", "#8bd8ef")
         self.btn_eraser = self._overlay_button("橡皮擦", "eraser", "#ff9a84")
         self.btn_road.setToolTip(
-            "道路 [8]\n直接点击/拖动六边形边绘制；每条笔触是独立道路；右键擦边"
+            "道路 [8]\n路径点或逐边编辑；每条笔触是独立道路；右键擦边"
         )
         self.btn_river.setToolTip(
-            "河流 [9]\n直接点击/拖动六边形边绘制；每条笔触是独立河道；右键擦边"
+            "河流 [9]\n路径点或逐边编辑；每条笔触是独立河道；右键擦边"
         )
         self.btn_eraser.setToolTip(
             "橡皮擦 [E]\n按笔刷范围清除地块、河流边与道路边"
@@ -302,7 +302,7 @@ class MapEditorWindow(QMainWindow):
         root.addWidget(self.btn_road)
         root.addWidget(self.btn_river)
         root.addWidget(self.btn_eraser)
-        self.path_mode_check = QCheckBox("河流路径点连线")
+        self.path_mode_check = QCheckBox("道路 / 河流路径点连线")
         self.path_mode_check.setToolTip(
             "开启后：左键放置路径点（自动吸附六边形顶点），程序沿边自动连线；"
             "双击/Enter 完成，右键/Backspace 撤点，Esc 取消"
@@ -330,7 +330,7 @@ class MapEditorWindow(QMainWindow):
         slider_row.addWidget(self.brush_spin)
         root.addLayout(slider_row)
         brush_hint = self._label(
-            "半径越大，一次覆盖的六边形越多；河流可勾选上方路径点模式。",
+            "半径越大，一次覆盖的六边形越多；道路/河流可勾选上方路径点模式。",
             "Hint",
         )
         brush_hint.setWordWrap(True)
@@ -350,7 +350,7 @@ class MapEditorWindow(QMainWindow):
         tip.setWordWrap(True)
         hc.addWidget(tip)
         edge_tip = self._label(
-            "河流可勾选路径点连线：左键加点，双击/Enter 完成。",
+            "道路/河流可勾选路径点连线：左键加点，双击/Enter 完成。",
             "Hint",
         )
         edge_tip.setWordWrap(True)
@@ -646,18 +646,14 @@ class MapEditorWindow(QMainWindow):
                 self.brush_spin.setVisible(False)
                 self.brush_slider.setEnabled(False)
                 self.brush_spin.setEnabled(False)
-                self.brush_value.setText("单边")
-                self.brush_status.setText("道路边")
-                self.status_hint.setText(
-                    "工具：道路边  ·  点击/拖动六边形边，每条笔触独立；右键擦边"
-                )
+                self._refresh_path_status()
             elif tool_id == 101:
                 self.canvas.set_tool(TOOL_RIVER)
                 self.brush_slider.setVisible(False)
                 self.brush_spin.setVisible(False)
                 self.brush_slider.setEnabled(False)
                 self.brush_spin.setEnabled(False)
-                self._refresh_river_status()
+                self._refresh_path_status()
             else:
                 self.canvas.set_tool(TOOL_ERASER)
                 self.brush_slider.setVisible(True)
@@ -705,12 +701,8 @@ class MapEditorWindow(QMainWindow):
 
     def _set_brush(self, value: int) -> None:
         self.canvas.set_brush_size(value)
-        if self.canvas.tool == TOOL_RIVER:
-            self._refresh_river_status()
-            return
-        if self.canvas.tool == TOOL_ROAD:
-            self.brush_value.setText("单边")
-            self.brush_status.setText("道路边")
+        if self.canvas.tool in (TOOL_ROAD, TOOL_RIVER):
+            self._refresh_path_status()
             return
         self.brush_value.setText(f"{value} 圈 · {self._brush_count()} 格")
         self.brush_status.setText(f"笔刷 {value}")
@@ -722,32 +714,36 @@ class MapEditorWindow(QMainWindow):
 
     def _on_path_mode_toggled(self, checked: bool) -> None:
         self.canvas.set_path_mode(checked)
-        if self.canvas.tool == TOOL_RIVER:
-            self._refresh_river_status()
+        if self.canvas.tool in (TOOL_ROAD, TOOL_RIVER):
+            self._refresh_path_status()
 
     def _on_path_changed(self, _count: int) -> None:
-        if self.canvas.tool == TOOL_RIVER:
-            self._refresh_river_status()
+        if self.canvas.tool in (TOOL_ROAD, TOOL_RIVER):
+            self._refresh_path_status()
 
-    def _refresh_river_status(self) -> None:
+    def _refresh_path_status(self) -> None:
+        if self.canvas.tool not in (TOOL_ROAD, TOOL_RIVER):
+            return
+        is_road = self.canvas.tool == TOOL_ROAD
+        noun = "道路" if is_road else "河流"
         if not self.canvas.path_mode:
             self.brush_value.setText("单边")
-            self.brush_status.setText("河流边")
+            self.brush_status.setText(f"{noun}边")
             self.status_hint.setText(
-                "工具：河流边  ·  点击/拖动六边形边，每条笔触独立；右键擦边"
+                f"工具：{noun}边  ·  点击/拖动六边形边，每条笔触独立；右键擦边"
             )
             return
         count = self.canvas.path_point_count()
         self.brush_value.setText("路径点" if count == 0 else f"路径点 {count}")
-        self.brush_status.setText("河流路径点")
+        self.brush_status.setText(f"{noun}路径点")
         if count:
             self.status_hint.setText(
-                f"河流路径点 {count}  ·  左键继续加点；双击/Enter 完成；"
+                f"{noun}路径点 {count}  ·  左键继续加点；双击/Enter 完成；"
                 "右键/Backspace 撤点；Esc 取消"
             )
         else:
             self.status_hint.setText(
-                "工具：河流路径点  ·  左键添加路径点，双击/Enter 完成；"
+                f"工具：{noun}路径点  ·  左键添加路径点，双击/Enter 完成；"
                 "右键擦边；Esc 取消"
             )
 

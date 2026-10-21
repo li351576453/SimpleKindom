@@ -40,7 +40,7 @@ Windows 下也可以直接双击 `run.bat`。
 | `Ctrl+G` | 随机生成地图 |
 | `Ctrl+S` / `Ctrl+O` | 保存 / 打开 |
 
-河流路径点模式：左键加点，`Enter` 或双击完成，`Backspace` 撤点，`Esc` 取消。
+道路/河流路径点模式：左键加点，`Enter` 或双击完成，`Backspace` 或右键撤点，`Esc` 取消。取消左侧勾选可切回逐边绘制。
 
 ## 项目结构
 

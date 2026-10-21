@@ -167,6 +167,23 @@ class HexAndPathTests(unittest.TestCase):
                 "路径点连线必须首尾相接",
             )
 
+    def test_vertex_path_can_build_a_road_group(self) -> None:
+        width, height = 40, 40
+        start, _ = nearest_vertex_of_cell(width * 10 + 10, 11.0, 15.0, width)
+        end, _ = nearest_vertex_of_cell(width * 14 + 12, 20.0, 18.0, width)
+        edges = vertex_path(start, end, width, height)
+        self.assertIsNotNone(edges)
+        assert edges is not None
+        model = MapModel(width, height)
+        self.assertTrue(model.add_road_edge_group(edges))
+        model.rebuild_all_edges()
+        self.assertEqual(len(model.road_groups), 1)
+        self.assertEqual(len(model.river_groups), 0)
+        self.assertGreater(
+            sum(mask.bit_count() for mask in model.road_edges),
+            0,
+        )
+
     def test_tributary_is_independent_from_main_river(self) -> None:
         model = MapModel(30, 30)
         main_cells = [
